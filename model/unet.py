@@ -20,8 +20,11 @@ class UNet2D:
                  strides: Tuple[int] = (1, 1), 
                  use_adding: bool = False, 
                  use_bn: bool = False,
+                 use_bilinear_upsampling: bool = False,
                  use_relu_output: bool = False,
+                 dropout_rate: float = 0.0,
                  lrelu: float = 0.2):
+                 
         if output_channel is None:
             output_channel = input_shape[-1]
         if up_features is None:
@@ -36,7 +39,9 @@ class UNet2D:
         self.strides = strides
         self.use_adding = use_adding
         self.use_bn = use_bn
+        self.use_bilinear_upsampling = use_bilinear_upsampling
         self.use_relu_output = use_relu_output
+        self.dropout_rate = dropout_rate
         self.lrelu = lrelu
 
         assert(len(down_features) == len(up_features) and len(strides) == len(up_features))
@@ -58,26 +63,34 @@ class UNet2D:
                 x = tf.keras.layers.Conv2D(self.down_features[i], 3, padding = 'same')(x)
                 x = self.normalization(x)
                 x = tf.keras.layers.LeakyReLU(alpha = self.lrelu)(x)
+                x = tf.keras.layers.Dropout(self.dropout_rate)(x)
             down_outputs.append(x)
             # down sample
             x = tf.keras.layers.Conv2D(self.down_features[i], 3, self.strides[i], padding = 'same')(x)
             x = self.normalization(x)
             x = tf.keras.layers.LeakyReLU(alpha = self.lrelu)(x)
+            x = tf.keras.layers.Dropout(self.dropout_rate)(x)
         
         # bottleneck module
         for k in range(self.nconv_per_module):
             x = tf.keras.layers.Conv2D(self.down_features[i], 3, padding = 'same')(x)
             x = self.normalization(x)
             x = tf.keras.layers.LeakyReLU(alpha = self.lrelu)(x)
+            x = tf.keras.layers.Dropout(self.dropout_rate)(x)
         
         # upsample modules
         for i in range(len(self.up_features)):
             # correpsonding downsampling module
             idown = len(self.up_features) - i - 1  
             # upsample
-            x = tf.keras.layers.Conv2DTranspose(self.up_features[i], 3, self.strides[idown], padding = 'same')(x)
+            if self.use_bilinear_upsampling:
+                x = tf.keras.layers.Conv2D(self.up_features[i], 3, padding = 'same')(x)
+                x = tf.keras.layers.UpSampling2D(size = self.strides[idown], interpolation = 'bilinear')(x)
+            else:
+                x = tf.keras.layers.Conv2DTranspose(self.up_features[i], 3, self.strides[idown], padding = 'same')(x)
             x = self.normalization(x)
             x = tf.keras.layers.LeakyReLU(alpha = self.lrelu)(x)
+            x = tf.keras.layers.Dropout(self.dropout_rate)(x)
             # combine with downsampling layer
             if self.use_adding:
                 x = x + down_outputs[idown]
@@ -88,6 +101,7 @@ class UNet2D:
                 x = tf.keras.layers.Conv2D(self.up_features[i], 3, padding = 'same')(x)
                 x = self.normalization(x)
                 x = tf.keras.layers.LeakyReLU(alpha = self.lrelu)(x)
+                x = tf.keras.layers.Dropout(self.dropout_rate)(x)
         
         # output layer
         x = tf.keras.layers.Conv2D(self.output_channel, 1, padding='same')(x)

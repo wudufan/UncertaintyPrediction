@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import copy
 import h5py
+import scipy.ndimage
 
 class Image2DGenerator(tf.keras.utils.Sequence):
     def __init__(self, 
@@ -219,7 +220,11 @@ class Image2DGeneratorForUncertainty(Image2DGenerator):
     def __getitem__(self, index: int):
         x, y = super().__getitem__(index)
 
-        return x, (y[..., [1]] - y[..., [0]]) ** 2 * self.scale_y * self.scale_y
+        y = (y[..., [1]] - y[..., [0]]) ** 2 * self.scale_y * self.scale_y
+        # y = scipy.ndimage.gaussian_filter1d(y, 10, 1)
+        # y = scipy.ndimage.gaussian_filter1d(y, 10, 2)
+
+        return x, y
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

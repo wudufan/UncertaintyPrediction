@@ -7,6 +7,50 @@ import numpy as np
 import SimpleITK as sitk
 import os
 
+class SaveValid2DImageCallback(tf.keras.callbacks.Callback):
+    def __init__(self, 
+                 model: tf.keras.Model, 
+                 x: dict, 
+                 y: dict, 
+                 output_dir: str, 
+                 interval = 1, 
+                 postprocess = None, 
+                 norm_x = 1000,
+                 norm_y = 1000
+                 ):
+        super().__init__()
+
+        self.model = model
+        self.x = x
+        self.y = y
+        self.output_dir = output_dir
+        self.interval = interval
+        self.postprocess = postprocess
+        self.norm_x = norm_x
+        self.norm_y = norm_y
+
+    def on_epoch_end(self, epoch, logs = None):
+        if (epoch + 1) % self.interval != 0:
+            return
+        
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+        
+        # predict all the x
+        for name in self.x:
+            preds = self.model.predict(self.x[name])
+            if self.postprocess is not None:
+                ys = self.postprocess(self.y[name])
+                preds = self.postprocess(preds)
+
+            xs = (self.x[name] * self.norm_x).astype(np.int16)
+            ys = (ys * self.norm_y).astype(np.int16)
+            preds = (preds * self.norm_y).astype(np.int16)
+
+            sitk.WriteImage(sitk.GetImageFromArray(xs[...,0]), os.path.join(self.output_dir, name+'.x.nii'))
+            sitk.WriteImage(sitk.GetImageFromArray(ys[...,0]), os.path.join(self.output_dir, name+'.y.nii'))
+            sitk.WriteImage(sitk.GetImageFromArray(preds[...,0]), os.path.join(self.output_dir, name+'.pred.nii'))
+
 class SaveValid2DCallback(tf.keras.callbacks.Callback):
     def __init__(self, 
                  model: tf.keras.Model, 
@@ -65,15 +109,13 @@ class SaveValid2DCallback(tf.keras.callbacks.Callback):
             sitk.WriteImage(sitk.GetImageFromArray(preds[...,0]), os.path.join(self.output_dir, name+'.pred.nii'))
 
 
-
-
-
 class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
     def __init__(self, 
                  model: tf.keras.Model, 
                  file_writer, 
                  x: dict, 
                  y: dict, 
+                 ref: dict = None,
                  interval = 1,
                  postprocess = None, 
                  norm_x = 1000, 
@@ -88,6 +130,7 @@ class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
         self.file_writer = file_writer
         self.x = x
         self.y = y
+        self.ref = ref
         self.interval = interval
         self.norm_x = norm_x
         self.vmin_x = vmin_x
@@ -109,7 +152,11 @@ class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
             return
         
         # predict all the x
-        preds = {k: self.model.predict(self.x[k]) for k in self.x}
+        if self.ref is not None:
+            preds = {k: self.model.predict(self.x[k]) - self.ref[k] for k in self.x}
+        else:
+            preds = {k: self.model.predict(self.x[k]) for k in self.x}
+
         if self.postprocess is not None:
             preds = {k: self.postprocess(preds[k]) for k in preds}
         

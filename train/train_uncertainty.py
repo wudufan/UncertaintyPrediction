@@ -9,6 +9,8 @@ import tensorflow.keras.backend as K
 import shutil
 import pandas as pd
 import numpy as np
+import scipy.ndimage
+import matplotlib.pyplot as plt
 
 import argparse
 
@@ -24,9 +26,11 @@ parser.add_argument('config')
 
 if sys.argv[0] != 'train_uncertainty.py':
     # debug
+    print ('debug')
     verbose = 1
-    cmds = ['config/uncertainty/l2_depth_3.cfg']
+    cmds = ['config/uncertainty/debug.cfg']
 else:
+    print ('no debug')
     verbose = 2
     cmds = None
 
@@ -108,7 +112,12 @@ for i in range(len(valid_generator.src_datasets)):
     name = os.path.basename(valid_generator.src_datasets[i][0][:-3])
     x, y = valid_generator.load_slices(i, [train_args['Display']['islice']])
     snapshots_x[name] = x
-    snapshots_y[name] = np.abs(y[...,[0]] - y[...,[1]]) * train_args['Data']['scale_y']
+    
+    y = (y[..., [1]] - y[..., [0]]) ** 2 * train_args['Data']['scale_y'] * train_args['Data']['scale_y']
+    # y = scipy.ndimage.gaussian_filter1d(y, 10, 1)
+    # y = scipy.ndimage.gaussian_filter1d(y, 10, 2)
+
+    snapshots_y[name] = np.sqrt(y)
 
 snapshot_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'snapshots'))
 display_args = train_args['Display']
