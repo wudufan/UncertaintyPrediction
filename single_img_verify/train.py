@@ -27,10 +27,19 @@ if sys.argv[0] != 'train.py':
     # debug
     print ('debug')
     verbose = 1
-    cmds = ['error_x0.cfg', 
-            '--IO.ntrain', '700',
-            '--IO.nvalid', '2',
-            ]
+    # cmds = ['error.cfg', 
+    #         '--IO.ntrain', '100',
+    #         '--IO.nvalid', '2',
+    #         ]
+    cmds = [
+        'error_x0.cfg',
+        '--IO.x0', '"forbild/x0.nii"', 
+        '--IO.var_roi_map', '"forbild/variance.seg.nrrd"', 
+        '--IO.tag', '"forbild/error_x0"',
+        '--Network.input_shape', '(512,512,1)',
+        '--IO.ntrain', '20', 
+        '--IO.nvalid', '1',
+    ]
 else:
     print ('no debug')
     verbose = 2
@@ -69,6 +78,15 @@ else:
     scale_y = train_args['Data']['scale_y']
     postprocess = postprocess_linear
 
+
+#%%
+os.environ['CUDA_VISIBLE_DEVICES'] = train_args['Train']['device']
+K.clear_session()
+
+# load the existing model if need to do prediction
+if train_args['IO']['target'] == 'error':
+    pred_model = tf.keras.models.load_model(train_args['IO']['checkpoint'])
+
 #%% 
 # generate data
 x_train = []
@@ -87,21 +105,27 @@ data_model = noise_model.ImageNoiseModel(x0=x0, var_roi_map=var_roi_map, **train
 np.random.seed(train_args['IO']['seed'])
 print ('Generating %d training images'%train_args['IO']['ntrain'], end=': ', flush=True)
 for i in range(train_args['IO']['ntrain']):
-    if (i+1) % 100 == 0:
+    if (i+1) % 10 == 0:
         print (i+1, end=',', flush=True)
     label, imgs = data_model.forward_sample()
     if train_args['IO']['target'] == 'mean':
-        y = label
+        y = label[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
     elif train_args['IO']['target'] == 'square':
-        y = label**2
+        y = (label**2)[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
     elif train_args['IO']['target'] == 'error_x0':
-        y = (label - x0)**2
+        y = ((label - x0)**2)[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
     elif train_args['IO']['target'] == 'error':
-        raise NotImplementedError('IO.target=error not implemented')
+        x = (imgs[0] - 1000 / train_args['Data']['norm'])[np.newaxis, ..., np.newaxis]
+        pred = (pred_model.predict(x) + 1000 / train_args['Data']['norm'])[0, ..., 0]
+        y = ((label - pred)**2)[..., np.newaxis]
+        x = np.concatenate((imgs[0][..., np.newaxis], pred[..., np.newaxis]), -1)
     else:
         raise ValueError('IO.target must be one of "mean", "square", "error"')
-
-    x_train.append(imgs[0])
+    
+    x_train.append(x)
     y_train.append(y)
 print ('done', flush=True)
 
@@ -112,29 +136,37 @@ for i in range(train_args['IO']['nvalid']):
     label, imgs = data_model.forward_sample()
     post_mean, post_std = data_model.posterior_mean_and_std(imgs[0])
     if train_args['IO']['target'] == 'mean':
-        y = post_mean
-        ref_valid.append(np.zeros_like(y))
+        y = post_mean[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
+        ref = np.zeros_like(y)
     elif train_args['IO']['target'] == 'square':
-        y = post_std**2 + post_mean**2
-        ref_valid.append(post_mean**2)
+        y = (post_std**2 + post_mean**2)[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
+        ref = (post_mean**2)[..., np.newaxis]
     elif train_args['IO']['target'] == 'error_x0':
-        y = post_std**2 + post_mean**2 - 2*post_mean*x0 + x0**2
-        ref_valid.append(np.zeros_like(y))
+        y = (post_std**2 + post_mean**2 - 2*post_mean*x0 + x0**2)[..., np.newaxis]
+        x = imgs[0][..., np.newaxis]
+        ref = np.zeros_like(y)
     elif train_args['IO']['target'] == 'error':
-        raise NotImplementedError('IO.target=error not implemented')
+        x = (imgs[0] - 1000 / train_args['Data']['norm'])[np.newaxis, ..., np.newaxis]
+        pred = (pred_model.predict(x) + 1000 / train_args['Data']['norm'])[0, ..., 0]
+        y = (post_std**2 + post_mean**2 - 2*post_mean*pred + pred**2)[..., np.newaxis]
+        x = np.concatenate((imgs[0][..., np.newaxis], pred[..., np.newaxis]), -1)
+        ref = np.zeros_like(y)
     else:
         raise ValueError('IO.target must be one of "mean", "square", "error"')
 
-    x_valid.append(imgs[0])
+    x_valid.append(x)
     y_valid.append(y)
+    ref_valid.append(ref)
 print ('done', flush=True)
 
-x_train = np.array(x_train)[..., np.newaxis] - 1000 / train_args['Data']['norm']
-x_valid = np.array(x_valid)[..., np.newaxis] - 1000 / train_args['Data']['norm']
+x_train = np.array(x_train) - 1000 / train_args['Data']['norm']
+x_valid = np.array(x_valid) - 1000 / train_args['Data']['norm']
 
-y_train = (np.array(y_train)[..., np.newaxis] + train_args['Data']['offset_y']) * scale_y
-y_valid = (np.array(y_valid)[..., np.newaxis] + train_args['Data']['offset_y']) * scale_y
-ref_valid = np.array(ref_valid)[..., np.newaxis] * scale_y
+y_train = (np.array(y_train) + train_args['Data']['offset_y']) * scale_y
+y_valid = (np.array(y_valid) + train_args['Data']['offset_y']) * scale_y
+ref_valid = np.array(ref_valid) * scale_y
 
 if cmds is not None:
     plt.imshow(postprocess(y_valid[0, ..., 0] - ref_valid[0, ..., 0]) * train_args['Display']['norm_y'], 'gray', 
@@ -142,9 +174,6 @@ if cmds is not None:
     plt.show()
 
 #%%
-os.environ['CUDA_VISIBLE_DEVICES'] = train_args['Train']['device']
-K.clear_session()
-
 # tensorboard
 log_dir = os.path.join(output_dir, 'log')
 if train_args['Train']['relog'] and os.path.exists(log_dir):
