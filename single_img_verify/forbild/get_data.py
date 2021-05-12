@@ -52,5 +52,5 @@ plt.subplot(133); plt.imshow(y + v_map * 0.1, 'gray', vmin=0.84, vmax=1.24)
 
 #%% 
 # output
-sitk.WriteImage(sitk.GetImageFromArray(((y * 1000) - 1000).astype(np.int16)), 'x0.nii')
-sitk.WriteImage(sitk.GetImageFromArray(v_map[np.newaxis,...]), 'variance.seg.nrrd')
+# sitk.WriteImage(sitk.GetImageFromArray(((y * 1000) - 1000).astype(np.int16)), 'x0.nii')
+# sitk.WriteImage(sitk.GetImageFromArray(v_map[np.newaxis,...]), 'variance.seg.nrrd')

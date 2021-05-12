@@ -23,7 +23,8 @@ class UNet2D:
                  use_bilinear_upsampling: bool = False,
                  use_relu_output: bool = False,
                  dropout_rate: float = 0.0,
-                 lrelu: float = 0.2):
+                 lrelu: float = 0.2, 
+                 name = None):
                  
         if output_channel is None:
             output_channel = input_shape[-1]
@@ -43,6 +44,7 @@ class UNet2D:
         self.use_relu_output = use_relu_output
         self.dropout_rate = dropout_rate
         self.lrelu = lrelu
+        self.name = name
 
         assert(len(down_features) == len(up_features) and len(strides) == len(up_features))
 
@@ -110,7 +112,7 @@ class UNet2D:
         if self.use_relu_output:
             x = tf.keras.layers.ReLU()(x)
         
-        self.model = tf.keras.Model(inputs = inputs, outputs = x)
+        self.model = tf.keras.Model(inputs = inputs, outputs = x, name = self.name)
 
         return self.model
 

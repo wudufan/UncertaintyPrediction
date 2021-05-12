@@ -171,16 +171,16 @@ if __name__ == '__main__':
 
     # # test noise model
     np.random.seed(100)
-    x0 = sitk.GetArrayFromImage(sitk.ReadImage('./data/x0.nii')).astype(np.float32) / 1000 + 1
-    var_roi = sitk.GetArrayFromImage(sitk.ReadImage('./data/variance.seg.nrrd'))[0]
+    x0 = sitk.GetArrayFromImage(sitk.ReadImage('./forbild/x0.nii')).astype(np.float32) / 1000 + 1
+    var_roi = sitk.GetArrayFromImage(sitk.ReadImage('./forbild/variance.seg.nrrd'))[0]
     noise_model = ImageNoiseModel(x0, var_roi, std_x_use_x0=False)
 
     x, y = noise_model.forward_sample()
 
     plt.figure(figsize = [15, 5])
-    plt.subplot(131); plt.imshow(x0[128:-128, 128:-128], 'gray', vmin=0.84, vmax=1.24)
-    plt.subplot(132); plt.imshow(x[128:-128, 128:-128], 'gray', vmin=0.84, vmax=1.24)
-    plt.subplot(133); plt.imshow(y[0][128:-128, 128:-128], 'gray', vmin=0.84, vmax=1.24)
+    plt.subplot(131); plt.imshow(x0, 'gray', vmin=0.84, vmax=1.24)
+    plt.subplot(132); plt.imshow(x, 'gray', vmin=0.84, vmax=1.24)
+    plt.subplot(133); plt.imshow(y[0], 'gray', vmin=0.84, vmax=1.24)
 
     # xs = []
     # for i in range(700):

@@ -16,7 +16,8 @@ class SaveValid2DImageCallback(tf.keras.callbacks.Callback):
                  interval = 1, 
                  postprocess = None, 
                  norm_x = 1000,
-                 norm_y = 1000
+                 norm_y = 1000,
+                 save_preds_all_channels = False
                  ):
         super().__init__()
 
@@ -28,6 +29,7 @@ class SaveValid2DImageCallback(tf.keras.callbacks.Callback):
         self.postprocess = postprocess
         self.norm_x = norm_x
         self.norm_y = norm_y
+        self.save_preds_all_channels = save_preds_all_channels
 
     def on_epoch_end(self, epoch, logs = None):
         if (epoch + 1) % self.interval != 0:
@@ -45,11 +47,14 @@ class SaveValid2DImageCallback(tf.keras.callbacks.Callback):
 
             xs = (self.x[name] * self.norm_x).astype(np.int16)
             ys = (ys * self.norm_y).astype(np.int16)
-            preds = (preds * self.norm_y).astype(np.int16)
+            preds_output = (preds[...,[0]] * self.norm_y).astype(np.int16)
 
             sitk.WriteImage(sitk.GetImageFromArray(xs[...,0]), os.path.join(self.output_dir, name+'.x.nii'))
             sitk.WriteImage(sitk.GetImageFromArray(ys[...,0]), os.path.join(self.output_dir, name+'.y.nii'))
-            sitk.WriteImage(sitk.GetImageFromArray(preds[...,0]), os.path.join(self.output_dir, name+'.pred.nii'))
+            sitk.WriteImage(sitk.GetImageFromArray(preds_output), os.path.join(self.output_dir, name+'.pred.nii'))
+            if self.save_preds_all_channels:
+                for ichannel in range(1, preds.shape[-1]):
+                    sitk.WriteImage(sitk.GetImageFromArray(preds[..., ichannel]), os.path.join(self.output_dir, name+'.pred-%d.nii'%ichannel))
 
 class SaveValid2DCallback(tf.keras.callbacks.Callback):
     def __init__(self, 
@@ -59,8 +64,13 @@ class SaveValid2DCallback(tf.keras.callbacks.Callback):
                  interval = 1, 
                  postprocess = None, 
                  norm_x = 1000,
-                 norm_y = 1000
+                 norm_y = 1000,
+                 save_preds_all_channels = False
                  ):
+        '''
+        save_preds_all_channels: if true, all the channels higher than 0 will be saved using float32 format
+        '''
+
         super().__init__()
 
         self.model = model
@@ -70,6 +80,7 @@ class SaveValid2DCallback(tf.keras.callbacks.Callback):
         self.postprocess = postprocess
         self.norm_x = norm_x
         self.norm_y = norm_y
+        self.save_preds_all_channels = save_preds_all_channels
 
     def on_epoch_end(self, epoch, logs = None):
         if (epoch + 1) % self.interval != 0:
@@ -101,12 +112,16 @@ class SaveValid2DCallback(tf.keras.callbacks.Callback):
             
             xs = (xs * self.norm_x).astype(np.int16)
             ys = (ys * self.norm_y).astype(np.int16)
-            preds = (preds * self.norm_y).astype(np.int16)
+            preds_output = (preds[...,[0]] * self.norm_y).astype(np.int16)
 
             name = os.path.basename(self.generator.src_datasets[idataset][0])[:-3]
             sitk.WriteImage(sitk.GetImageFromArray(xs[...,0]), os.path.join(self.output_dir, name+'.x.nii'))
             sitk.WriteImage(sitk.GetImageFromArray(ys[...,0]), os.path.join(self.output_dir, name+'.y.nii'))
-            sitk.WriteImage(sitk.GetImageFromArray(preds[...,0]), os.path.join(self.output_dir, name+'.pred.nii'))
+            sitk.WriteImage(sitk.GetImageFromArray(preds_output[...,0]), os.path.join(self.output_dir, name+'.pred.nii'))
+
+            if self.save_preds_all_channels:
+                for ichannel in range(1, preds.shape[-1]):
+                    sitk.WriteImage(sitk.GetImageFromArray(preds[..., ichannel]), os.path.join(self.output_dir, name+'.pred-%d.nii'%ichannel))
 
 
 class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
@@ -118,6 +133,7 @@ class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
                  ref: dict = None,
                  interval = 1,
                  postprocess = None, 
+                 save_preds_all_channels = False,
                  norm_x = 1000, 
                  vmin_x = -160,
                  vmax_x = 240, 
@@ -141,6 +157,9 @@ class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
 
         # postprocessing on the prediction
         self.postprocess = postprocess
+
+        # to display all channels or not, additional channels will be displayed using 1% to 99%
+        self.save_preds_all_channels = save_preds_all_channels
     
     def make_snapshot(self, img, norm, vmin, vmax):
         img = (img * norm - vmin) / (vmax - vmin)
@@ -164,6 +183,13 @@ class TensorboardSnapshotCallback(tf.keras.callbacks.Callback):
             for k in self.x:
                 tf.summary.image(k + '/x', self.make_snapshot(self.x[k], self.norm_x, self.vmin_x, self.vmax_x), step = epoch)
                 tf.summary.image(k + '/pred', self.make_snapshot(preds[k], self.norm_y, self.vmin_y, self.vmax_y), step = epoch)
+
+                if self.save_preds_all_channels:
+                    for ichannel in range(1, preds[k].shape[-1]):
+                        pred_channel = preds[k][..., [ichannel]]
+                        vmin = np.percentile(pred_channel, 1)
+                        vmax = np.percentile(pred_channel, 99)
+                        tf.summary.image(k + '/pred-%d'%ichannel, self.make_snapshot(pred_channel, 1, vmin, vmax), step = epoch)
 
                 if self.y is not None and k in self.y:
                     tf.summary.image(k + '/y', self.make_snapshot(self.y[k], self.norm_y, self.vmin_y, self.vmax_y), step = epoch)

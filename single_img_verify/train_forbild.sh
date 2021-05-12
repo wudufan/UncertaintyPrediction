@@ -18,6 +18,6 @@ wait
 
 python3 train.py error.cfg --Train.device "'3'" \
 --IO.x0 "'forbild/x0.nii'" --IO.var_roi_map "'forbild/variance.seg.nrrd'" --IO.tag "'forbild/error'" \
---IO.checkpoint "'/home/dwu/trainData/uncertainty_prediction/single_img_verify/forbild/mean/100.h5'"
+--IO.checkpoint "'/home/dwu/trainData/uncertainty_prediction/single_img_verify/forbild/mean/100.h5'" \
 --Network.input_shape "(512,512,2)" \
 &> outputs/forbild_error.log

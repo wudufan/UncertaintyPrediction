@@ -1,47 +1,26 @@
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-import h5py
+import os
 import scipy.ndimage
-import pandas as pd
 import SimpleITK as sitk
+import imageio
+import scipy.stats
 
 #%%
-# with h5py.File('/home/dwu/trainData/deep_denoiser_ensemble/data/mayo_2d_3_layer_mean/dose_rate_1.h5', 'r') as f:
-#     y = np.copy(f['img'])
+input_dir = '/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_4/img/valid/'
+tag = 'dose_rate_4'
+norm = 1
+norm_y = 10
 
-# with h5py.File('/home/dwu/trainData/deep_denoiser_ensemble/data/mayo_2d_3_layer_mean/dose_rate_4.h5', 'r') as f:
-#     x = np.copy(f['img'])
-
-# with h5py.File('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/dose_rate_4.h5', 'r') as f:
-#     pred = np.copy(f['img'])
-
-#%%
-# plt.figure(figsize=(16,16))
-# plt.subplot(221); plt.imshow(y[95, ...], 'gray', vmin=-160, vmax=240)
-# plt.subplot(222); plt.imshow(x[95, ...], 'gray', vmin=-160, vmax=240)
-# plt.subplot(223); plt.imshow(pred[95, ...], 'gray', vmin=-160, vmax=240)
-# plt.subplot(224); plt.imshow(np.abs(y-pred)[95, ...], 'gray', vmin=0, vmax=50)
+x = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.x.nii'))).astype(np.float32) / norm
+preds = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.pred.nii'))).astype(np.float32) / norm_y
+y = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.y.nii'))).astype(np.float32) / norm_y
 
 #%%
-# preds = sitk.GetArrayFromImage(sitk.ReadImage('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_3/patch/valid/dose_rate_4.pred.nii'))
-# y = sitk.GetArrayFromImage(sitk.ReadImage('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_3/patch/valid/dose_rate_4.y.nii'))
-
-x = sitk.GetArrayFromImage(sitk.ReadImage('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_4/img/valid/dose_rate_4.x.nii'))
-preds = sitk.GetArrayFromImage(sitk.ReadImage('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_4/img/valid/dose_rate_4.pred.nii'))
-y = sitk.GetArrayFromImage(sitk.ReadImage('/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_4/img/valid/dose_rate_4.y.nii'))
-
-x = x.astype(np.float32)
-preds = preds.astype(np.float32)
-y = y.astype(np.float32)
-
-#%%
-print ((preds**2).mean()/100, (y**2).mean()/100)
-
-#%%
-plt.figure(figsize=(8,4), dpi=200)
-plt.subplot(121); plt.imshow(np.sqrt(np.mean(preds[50:100]**2, 0)), 'gray', vmin=0, vmax=500); plt.title('Mean predicted 50 slices (std) \n [0, 50] HU')
-plt.subplot(122); plt.imshow(np.sqrt(np.mean(y[50:100]**2, 0)), 'gray', vmin=0, vmax=500); plt.title('Mean error 50 slices (std) \n [0, 50] HU')
+plt.figure(figsize=(8,4))
+plt.subplot(121); plt.imshow(np.sqrt(np.mean(preds[50:100]**2, 0)), 'gray', vmin=0, vmax=50); plt.title('Mean predicted 50 slices (std) \n [0, 50] HU')
+plt.subplot(122); plt.imshow(np.sqrt(np.mean(y[50:100]**2, 0)), 'gray', vmin=0, vmax=50); plt.title('Mean error 50 slices (std) \n [0, 50] HU')
 
 # %%
 islice = 80
@@ -50,27 +29,97 @@ smooth_y = np.sqrt(scipy.ndimage.gaussian_filter(y[islice]**2, std))
 smooth_p = np.sqrt(scipy.ndimage.gaussian_filter(preds[islice]**2, std))
 
 plt.figure(figsize=(16,4))
-plt.subplot(141); plt.imshow(preds[islice], 'gray', vmin=0, vmax=500); plt.title('predicted')
-plt.subplot(142); plt.imshow(y[islice], 'gray', vmin=0, vmax=500); plt.title('error')
-plt.subplot(143); plt.imshow(smooth_p, 'gray', vmin=0, vmax=500); plt.title('smoothed predicted \n (Gaussian with std=10)')
-plt.subplot(144); plt.imshow(smooth_y, 'gray', vmin=0, vmax=500)
+plt.subplot(141); plt.imshow(preds[islice], 'gray', vmin=0, vmax=50); plt.title('predicted')
+plt.subplot(142); plt.imshow(y[islice], 'gray', vmin=0, vmax=50); plt.title('error')
+plt.subplot(143); plt.imshow(smooth_p, 'gray', vmin=0, vmax=50); plt.title('smoothed predicted \n (Gaussian with std=10)')
+plt.subplot(144); plt.imshow(smooth_y, 'gray', vmin=0, vmax=50)
 
 #%%
 islice = 201
 plt.figure(figsize=(15,5))
 plt.subplot(131); plt.imshow(x[islice], 'gray', vmin=-160, vmax=240); plt.title('x: [-160,240] HU')
-plt.subplot(132); plt.imshow(preds[islice], 'gray', vmin=0, vmax=500); plt.title('uncertainty (std): [0, 50] HU')
-plt.subplot(133); plt.imshow(y[islice], 'gray', vmin=0, vmax=500); plt.title('|y-x|: [0, 50] HU')
+plt.subplot(132); plt.imshow(preds[islice], 'gray', vmin=0, vmax=50); plt.title('uncertainty (std): [0, 50] HU')
+plt.subplot(133); plt.imshow(y[islice], 'gray', vmin=0, vmax=50); plt.title('|y-x|: [0, 50] HU')
 
 # %%
-var_y_mean = np.mean((y/10)**2, (1,2))
-var_pred_mean = np.mean((preds/10)**2, (1,2))
+var_y_mean = np.mean((y)**2, (1,2))
+var_pred_mean = np.mean((preds)**2, (1,2))
 
-plt.figure(figsize=(4,3), dpi=200)
+plt.figure()
 plt.plot(var_y_mean)
 plt.plot(var_pred_mean)
 plt.ylabel('Mean Variance (HU$^2$)')
 plt.xlabel('#slice')
 plt.legend(['$(y-f(x))^2$', 'Predicted'])
+
+# %%
+# generate figures
+output_dir = os.path.join('figure', tag)
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# save slices
+def save_img(filename, img, vmin, vmax):
+    img = (img - vmin) / (vmax - vmin) * 255
+    img[img < 0] = 0
+    img[img > 255] = 255
+    img = img.astype(np.uint8)
+
+    if filename is None:
+        plt.figure()
+        plt.imshow(img, 'gray')
+    else:
+        imageio.imwrite(filename, img)
+
+save_img(os.path.join(output_dir, 'x_shoulder.png'), x[201][64:-64, 64:-64], -160, 240)
+save_img(os.path.join(output_dir, 'pred_shoulder.png'), preds[201][64:-64, 64:-64], 0, 40)
+save_img(os.path.join(output_dir, 'y_shoulder.png'), y[201][64:-64, 64:-64], 0, 40)
+
+save_img(os.path.join(output_dir, 'x_liver.png'), x[95][64:-64, 64:-64], -160, 240)
+save_img(os.path.join(output_dir, 'pred_liver.png'), preds[95][64:-64, 64:-64], 0, 40)
+save_img(os.path.join(output_dir, 'y_liver.png'), y[95][64:-64, 64:-64], 0, 40)
+
+# %%
+# quantification
+# interslice mean
+y_mean = np.sqrt(np.mean(y[:100]**2, 0))
+pred_mean = np.sqrt(np.mean(preds[:100]**2, 0))
+save_img(os.path.join(output_dir, 'y_mean_100.png'), y_mean, vmin=0, vmax=40)
+save_img(os.path.join(output_dir, 'pred_mean_100.png'), pred_mean, vmin=0, vmax=40)
+
+rmse = np.sqrt(np.mean((y_mean - pred_mean)**2))
+psnr = 20 * np.log10(pred_mean.max() / rmse)
+print (rmse, psnr)
+
+# %%
+# whole-slice mean
+y_slice_mean = np.sqrt(np.mean(y**2, (1,2)))
+pred_slice_mean = np.sqrt(np.mean(preds**2, (1,2)))
+
+plt.figure(figsize = [4,3], dpi=200)
+plt.plot(pred_slice_mean)
+plt.plot(y_slice_mean, '--')
+plt.xlabel('Slice index')
+plt.ylabel('Mean error of each slice (HU)')
+plt.legend(['Predicted', 'Ground truth'])
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, 'slice_mean_err.png'))
+
+# relative error
+errs = np.abs(pred_slice_mean - y_slice_mean) / y_slice_mean
+print (errs.min(), errs.max(), np.median(errs))
+print (errs.mean(), np.std(errs))
+
+# r = scipy.stats.pearsonr(y_slice_mean, pred_slice_mean)
+# print (r)
+
+# p = np.polyfit(y_slice_mean, pred_slice_mean, 1)
+# xmin = 7
+# xmax = 27
+
+# plt.figure(figsize = [3,3], dpi=200)
+# plt.plot(y_slice_mean.flatten(), pred_slice_mean.flatten(), '.', markersize=5)
+# plt.plot([xmin, xmax], [p[0]*xmin + p[1], p[0]*xmax+p[1]], '--')
+# plt.plot([xmin, xmax], [xmin, xmax], 'k-')
 
 # %%
