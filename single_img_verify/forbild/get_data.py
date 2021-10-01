@@ -2,13 +2,13 @@
 Get the Forbild head phantom
 '''
 
-#%%
+# %%
 import scipy.io
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 import numpy as np
 
-#%%
+# %%
 x = scipy.io.loadmat('/home/dwu/data/phantoms/forbild512.mat')['ph']
 
 # change it to a higher contrast
@@ -31,11 +31,11 @@ disk_ys = [130, 170, 210]
 # create templates
 masks = []
 for r in rads:
-    mask = np.zeros([r*2 + 1, r*2 + 1], np.uint8)
+    mask = np.zeros([r * 2 + 1, r * 2 + 1], np.uint8)
     for iy in range(mask.shape[0]):
         for ix in range(mask.shape[1]):
-            if (ix-r)**2 + (iy-r)**2 <= r**2:
-                mask[iy,ix] = 1
+            if (ix - r)**2 + (iy - r)**2 <= r**2:
+                mask[iy, ix] = 1
     masks.append(mask)
 
 v_map = np.zeros(y.shape, np.uint8)
@@ -43,14 +43,17 @@ for icontrast, iy in enumerate(disk_ys):
     for irad, ix in enumerate(disk_xs):
         sy = iy - rads[irad]
         sx = ix - rads[irad]
-        v_map[sy:sy+masks[irad].shape[0], sx:sx+masks[irad].shape[1]] = masks[irad] * (1 + icontrast)
+        v_map[sy:sy + masks[irad].shape[0], sx:sx + masks[irad].shape[1]] = masks[irad] * (1 + icontrast)
 
-plt.figure(figsize=(15,5))
-plt.subplot(131); plt.imshow(y, 'gray', vmin=0.84, vmax=1.24)
-plt.subplot(132); plt.imshow(v_map, 'gray')
-plt.subplot(133); plt.imshow(y + v_map * 0.1, 'gray', vmin=0.84, vmax=1.24)
+plt.figure(figsize=(15, 5))
+plt.subplot(131)
+plt.imshow(y, 'gray', vmin=0.84, vmax=1.24)
+plt.subplot(132)
+plt.imshow(v_map, 'gray')
+plt.subplot(133)
+plt.imshow(y + v_map * 0.1, 'gray', vmin=0.84, vmax=1.24)
 
-#%% 
+# %%
 # output
-# sitk.WriteImage(sitk.GetImageFromArray(((y * 1000) - 1000).astype(np.int16)), 'x0.nii')
-# sitk.WriteImage(sitk.GetImageFromArray(v_map[np.newaxis,...]), 'variance.seg.nrrd')
+sitk.WriteImage(sitk.GetImageFromArray(((y * 1000) - 1000).astype(np.int16)), 'x0.nii')
+sitk.WriteImage(sitk.GetImageFromArray(v_map[np.newaxis, ...]), 'variance.seg.nrrd')

@@ -1,7 +1,7 @@
 '''
 Training code
 '''
-#%%
+# %%
 import sys
 import os
 import tensorflow as tf
@@ -19,40 +19,40 @@ import model.unet
 import model.callbacks
 import utils.config_manager
 
-#%%
+# %%
 parser = argparse.ArgumentParser()
 parser.add_argument('config')
 
 if sys.argv[0] != 'train.py':
     # debug
-    print ('debug')
+    print('debug')
     verbose = 1
-    # cmds = ['error.cfg', 
+    # cmds = ['error.cfg',
     #         '--IO.ntrain', '100',
     #         '--IO.nvalid', '2',
     #         ]
     cmds = [
         'error_x0.cfg',
-        '--IO.x0', '"forbild/x0.nii"', 
-        '--IO.var_roi_map', '"forbild/variance.seg.nrrd"', 
+        '--IO.x0', '"forbild/x0.nii"',
+        '--IO.var_roi_map', '"forbild/variance.seg.nrrd"',
         '--IO.tag', '"forbild/error_x0"',
         '--Network.input_shape', '(512,512,1)',
-        '--IO.ntrain', '20', 
+        '--IO.ntrain', '20',
         '--IO.nvalid', '1',
     ]
 else:
-    print ('no debug')
+    print('no debug')
     verbose = 2
     cmds = None
 
 args, config, train_args = utils.config_manager.parse_config_with_extra_arguments(parser, cmds)
 
-print (args.config)
+print(args.config)
 for sec in train_args:
-    print ('[%s]'%sec)
+    print('[{0}]'.format(sec))
     for k in train_args[sec]:
-        print (k, '=', train_args[sec][k])
-    print ('', flush=True)
+        print(k, '=', train_args[sec][k])
+    print('', flush=True)
 
 # write the config file to the output directory
 output_dir = os.path.join(train_args['IO']['output_dir'], train_args['IO']['tag'])
@@ -61,25 +61,28 @@ if not os.path.exists(output_dir):
 with open(os.path.join(output_dir, 'config.cfg'), 'w') as f:
     config.write(f)
 
-#%%
+
+# %%
 def postprocess_sqrt(pred):
     pred[pred < 0] = 0
     return np.sqrt(pred)
 
+
 def postprocess_linear(pred):
     return pred
 
+
 if train_args['IO']['target'] in ['square', 'error', 'error_x0']:
-    print ('Using squared scale, postprocessing sqrt', flush=True)
+    print('Using squared scale, postprocessing sqrt', flush=True)
     scale_y = train_args['Data']['scale_y']**2
     postprocess = postprocess_sqrt
 else:
-    print ('Using linear scale, postprocessing linear', flush=True)
+    print('Using linear scale, postprocessing linear', flush=True)
     scale_y = train_args['Data']['scale_y']
     postprocess = postprocess_linear
 
 
-#%%
+# %%
 os.environ['CUDA_VISIBLE_DEVICES'] = train_args['Train']['device']
 K.clear_session()
 
@@ -87,26 +90,27 @@ K.clear_session()
 if train_args['IO']['target'] == 'error':
     pred_model = tf.keras.models.load_model(train_args['IO']['checkpoint'])
 
-#%% 
+# %%
 # generate data
 x_train = []
 y_train = []
 x_valid = []
 y_valid = []
 ref_valid = []
-x0 = (sitk.GetArrayFromImage(sitk.ReadImage(train_args['IO']['x0'])).astype(np.float32) + 1000) / train_args['Data']['norm']
+x0 = (sitk.GetArrayFromImage(sitk.ReadImage(train_args['IO']['x0'])).astype(np.float32) + 1000)\
+    / train_args['Data']['norm']
 try:
     var_roi_map = sitk.GetArrayFromImage(sitk.ReadImage(train_args['IO']['var_roi_map']))[0]
-except Exception as e:
+except Exception:
     var_roi_map = None
-    print ('Not using variance ROI')
-data_model = noise_model.ImageNoiseModel(x0=x0, var_roi_map=var_roi_map, **train_args['NoiseModel']) 
+    print('Not using variance ROI')
+data_model = noise_model.ImageNoiseModel(x0=x0, var_roi_map=var_roi_map, **train_args['NoiseModel'])
 
 np.random.seed(train_args['IO']['seed'])
-print ('Generating %d training images'%train_args['IO']['ntrain'], end=': ', flush=True)
+print('Generating {0} training images'.format(train_args['IO']['ntrain']), end=': ', flush=True)
 for i in range(train_args['IO']['ntrain']):
-    if (i+1) % 10 == 0:
-        print (i+1, end=',', flush=True)
+    if (i + 1) % 10 == 0:
+        print(i + 1, end=',', flush=True)
     label, imgs = data_model.forward_sample()
     if train_args['IO']['target'] == 'mean':
         y = label[..., np.newaxis]
@@ -124,15 +128,15 @@ for i in range(train_args['IO']['ntrain']):
         x = np.concatenate((imgs[0][..., np.newaxis], pred[..., np.newaxis]), -1)
     else:
         raise ValueError('IO.target must be one of "mean", "square", "error"')
-    
+
     x_train.append(x)
     y_train.append(y)
-print ('done', flush=True)
+print('done', flush=True)
 
-print ('Generating %d validation images with posterior pdf'%train_args['IO']['nvalid'], end=': ', flush=True)
+print('Generating {0} validation images with posterior pdf'.format(train_args['IO']['nvalid']), end=': ', flush=True)
 for i in range(train_args['IO']['nvalid']):
-    if (i+1) % 1 == 0:
-        print (i+1, end=',', flush=True)
+    if (i + 1) % 1 == 0:
+        print(i + 1, end=',', flush=True)
     label, imgs = data_model.forward_sample()
     post_mean, post_std = data_model.posterior_mean_and_std(imgs[0])
     if train_args['IO']['target'] == 'mean':
@@ -144,13 +148,13 @@ for i in range(train_args['IO']['nvalid']):
         x = imgs[0][..., np.newaxis]
         ref = (post_mean**2)[..., np.newaxis]
     elif train_args['IO']['target'] == 'error_x0':
-        y = (post_std**2 + post_mean**2 - 2*post_mean*x0 + x0**2)[..., np.newaxis]
+        y = (post_std**2 + post_mean**2 - 2 * post_mean * x0 + x0**2)[..., np.newaxis]
         x = imgs[0][..., np.newaxis]
         ref = np.zeros_like(y)
     elif train_args['IO']['target'] == 'error':
         x = (imgs[0] - 1000 / train_args['Data']['norm'])[np.newaxis, ..., np.newaxis]
         pred = (pred_model.predict(x) + 1000 / train_args['Data']['norm'])[0, ..., 0]
-        y = (post_std**2 + post_mean**2 - 2*post_mean*pred + pred**2)[..., np.newaxis]
+        y = (post_std**2 + post_mean**2 - 2 * post_mean * pred + pred**2)[..., np.newaxis]
         x = np.concatenate((imgs[0][..., np.newaxis], pred[..., np.newaxis]), -1)
         ref = np.zeros_like(y)
     else:
@@ -159,7 +163,7 @@ for i in range(train_args['IO']['nvalid']):
     x_valid.append(x)
     y_valid.append(y)
     ref_valid.append(ref)
-print ('done', flush=True)
+print('done', flush=True)
 
 x_train = np.array(x_train) - 1000 / train_args['Data']['norm']
 x_valid = np.array(x_valid) - 1000 / train_args['Data']['norm']
@@ -169,23 +173,28 @@ y_valid = (np.array(y_valid) + train_args['Data']['offset_y']) * scale_y
 ref_valid = np.array(ref_valid) * scale_y
 
 if cmds is not None:
-    plt.imshow(postprocess(y_valid[0, ..., 0] - ref_valid[0, ..., 0]) * train_args['Display']['norm_y'], 'gray', 
-               vmin=train_args['Display']['vmin_y'], vmax=train_args['Display']['vmax_y'])
+    plt.imshow(
+        postprocess(y_valid[0, ..., 0] - ref_valid[0, ..., 0]) * train_args['Display']['norm_y'],
+        'gray',
+        vmin=train_args['Display']['vmin_y'],
+        vmax=train_args['Display']['vmax_y']
+    )
     plt.show()
 
-#%%
+# %%
 # tensorboard
 log_dir = os.path.join(output_dir, 'log')
 if train_args['Train']['relog'] and os.path.exists(log_dir):
     shutil.rmtree(log_dir)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = log_dir, histogram_freq=1)
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
 # network
 network = model.unet.UNet2D(**train_args['Network'])
 _ = network.build()
-network.model.summary(line_length = 120)
+network.model.summary(line_length=120)
+
 
 # learning rates
 def scheduler(epoch, lr):
@@ -196,19 +205,20 @@ def scheduler(epoch, lr):
             return lr_list[i]
     return lr_list[-1]
 
-lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose = 1)
+
+lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose=1)
 
 # optimizer
 optimizer = tf.keras.optimizers.Adam()
-network.model.compile(optimizer, loss = tf.keras.losses.MeanSquaredError())
+network.model.compile(optimizer, loss=tf.keras.losses.MeanSquaredError())
 
 # saver
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    os.path.join(output_dir, '{epoch}.h5'), save_freq=len(x_train) * train_args['Train']['save_freq'], verbose = 1)
+    os.path.join(output_dir, '{epoch}.h5'), save_freq=len(x_train) * train_args['Train']['save_freq'], verbose=1)
 tmp_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    os.path.join(output_dir, 'tmp.h5'), save_freq=len(x_train), verbose = 0)
+    os.path.join(output_dir, 'tmp.h5'), save_freq=len(x_train), verbose=0)
 
-#%%
+# %%
 # snapshot callbacks
 # first extract the snapshot slices
 islice = train_args['Display']['islice']
@@ -219,20 +229,50 @@ snapshot_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'snapshots
 display_args = train_args['Display']
 
 snapshot_callback = model.callbacks.TensorboardSnapshotCallback(
-    network.model, snapshot_writer, snapshots_x, snapshots_y, snapshots_ref, postprocess = postprocess,
-    norm_x = display_args['norm_x'], vmin_x = display_args['vmin_x'], vmax_x = display_args['vmax_x'], 
-    norm_y = display_args['norm_y'], vmin_y = display_args['vmin_y'], vmax_y = display_args['vmax_y'], )
-
-#%%
-# validation callback
-validation_callback = model.callbacks.SaveValid2DImageCallback(
-    network.model, x={train_args['IO']['target']: x_valid}, y={train_args['IO']['target']: y_valid},
-    output_dir=os.path.join(output_dir, 'valid'), interval=train_args['Train']['save_freq'], 
-    postprocess = postprocess, norm_x = display_args['norm_x'], norm_y = display_args['norm_y']
+    network.model,
+    snapshot_writer,
+    snapshots_x,
+    snapshots_y,
+    snapshots_ref,
+    postprocess=postprocess,
+    norm_x=display_args['norm_x'],
+    vmin_x=display_args['vmin_x'],
+    max_x=display_args['vmax_x'],
+    norm_y=display_args['norm_y'],
+    vmin_y=display_args['vmin_y'],
+    vmax_y=display_args['vmax_y'],
 )
 
-#%%
-network.model.fit(x_train, y_train, batch_size = train_args['Data']['batch_size'], 
-                  epochs = train_args['Train']['epochs'][-1], shuffle = True, 
-                  max_queue_size = 10, workers = 4, use_multiprocessing = False, verbose = verbose, 
-                  callbacks = [lr_callback, snapshot_callback, validation_callback, tensorboard_callback, checkpoint_callback, tmp_checkpoint_callback])
+# %%
+# validation callback
+validation_callback = model.callbacks.SaveValid2DImageCallback(
+    network.model,
+    x={train_args['IO']['target']: x_valid},
+    y={train_args['IO']['target']: y_valid},
+    output_dir=os.path.join(output_dir, 'valid'),
+    interval=train_args['Train']['save_freq'],
+    postprocess=postprocess,
+    norm_x=display_args['norm_x'],
+    norm_y=display_args['norm_y']
+)
+
+# %%
+network.model.fit(
+    x_train,
+    y_train,
+    batch_size=train_args['Data']['batch_size'],
+    epochs=train_args['Train']['epochs'][-1],
+    shuffle=True,
+    max_queue_size=10,
+    workers=4,
+    use_multiprocessing=False,
+    verbose=verbose,
+    callbacks=[
+        lr_callback,
+        snapshot_callback,
+        validation_callback,
+        tensorboard_callback,
+        checkpoint_callback,
+        tmp_checkpoint_callback
+    ]
+)
