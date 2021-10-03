@@ -15,11 +15,11 @@ devices = ['2', '3']
 nprocesses = len(devices)
 args = {
     'input_dir': '/home/dwu/data/lowdoseCTsets/',
-    'geometry': '/home/dwu/trainData/deep_denoiser_ensemble/data/mayo/geometry.cfg',
+    'geometry': '/home/dwu/data/lowdoseCTsets/geometry.cfg',
     'N0': '1e5',
     'imgNorm': '0.019'
 }
-output_dir = '/home/dwu/trainData/deep_denoiser_ensemble/data/mayo/'
+output_dir = '/home/dwu/trainData/uncertainty_prediction/data/mayo/'
 slurm_header = """#!/bin/bash
 #SBATCH --partition=defq
 #SBATCH --job-name={0}

@@ -1,5 +1,5 @@
 '''
-Training code for uncertainty, new interface.
+Training code for denoising, new interface.
 '''
 # %%
 import sys
@@ -8,7 +8,6 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import shutil
 import pandas as pd
-import numpy as np
 import argparse
 
 sys.path.append('..')
@@ -25,7 +24,10 @@ if 'ipykernel' in sys.argv[0]:
     # debug
     print('debug')
     verbose = 1
-    cmds = ['config/uncertainty/debug.cfg']
+    cmds = [
+        'config/denoising/l2_depth_4.cfg',
+        '--Train.device', '"1"'
+    ]
 else:
     print('no debug')
     verbose = 2
@@ -88,14 +90,14 @@ if train_args['IO']['train'] is None:
     train_args['IO']['train'] = [t for t in all_tags if t not in train_args['IO']['valid']]
 print('Training tags:', train_args['IO']['train'])
 print('Validation tags:', train_args['IO']['valid'], flush=True)
-generator = model.data.Image2DGeneratorForUncertainty(
+generator = model.data.Image2DGenerator(
     manifest,
     train_args['IO']['src_datasets'],
     train_args['IO']['dst_datasets'],
     train_args['IO']['train'],
     **train_args['Data']
 )
-valid_generator = model.data.Image2DGeneratorForUncertainty(
+valid_generator = model.data.Image2DGenerator(
     manifest,
     train_args['IO']['src_datasets'],
     train_args['IO']['dst_datasets'],
@@ -105,7 +107,6 @@ valid_generator = model.data.Image2DGeneratorForUncertainty(
     num_slices_per_batch=1,
     shuffle=False,
     norm=train_args['Data']['norm'],
-    scale_y=train_args['Data']['scale_y'],
     flip=False
 )
 
@@ -126,20 +127,14 @@ for i in range(len(valid_generator.src_datasets)):
     name = os.path.basename(valid_generator.src_datasets[i][0][:-3])
     x, y = valid_generator.load_slices(i, [train_args['Display']['islice']])
     snapshots_x[name] = x
-
-    y = (y[..., [1]] - y[..., [0]]) ** 2 * train_args['Data']['scale_y'] * train_args['Data']['scale_y']
-    # y = scipy.ndimage.gaussian_filter1d(y, 10, 1)
-    # y = scipy.ndimage.gaussian_filter1d(y, 10, 2)
-
-    snapshots_y[name] = np.sqrt(y)
+    snapshots_y[name] = y
 
 snapshot_writer = tf.summary.create_file_writer(os.path.join(log_dir, 'snapshots'))
 display_args = train_args['Display']
 
 
 def postprocess(pred):
-    pred[pred < 0] = 0
-    return np.sqrt(pred)
+    return pred
 
 
 snapshot_callback = model.callbacks.TensorboardSnapshotCallback(

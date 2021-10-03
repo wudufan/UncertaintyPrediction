@@ -18,7 +18,7 @@ import CTProjector.projector.ct_projector as ct_projector
 # %%
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_dir', default='/home/dwu/data/lowdoseCTsets/')
-parser.add_argument('--output_dir', default='/home/dwu/trainData/deep_denoiser_ensemble/data/mayo/dose_rate_1')
+parser.add_argument('--output_dir', default='/home/dwu/trainData/uncertainty_prediction/data/mayo/dose_rate_1')
 parser.add_argument('--name', default='L291_full_sino')
 parser.add_argument('--geometry', default='/home/dwu/data/lowdoseCTsets/geometry.cfg')
 
