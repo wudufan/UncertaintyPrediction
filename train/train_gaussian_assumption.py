@@ -25,7 +25,7 @@ import utils.config_manager
 parser = argparse.ArgumentParser()
 parser.add_argument('config')
 
-if sys.argv[0] != 'train_gaussian_assumption.py':
+if 'ipykernel' in sys.argv[0]:
     # debug
     print('debug')
     verbose = 1

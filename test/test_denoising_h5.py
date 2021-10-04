@@ -17,8 +17,8 @@ parser.add_argument('--dataset', default=None)
 parser.add_argument('--checkpoint', default=None)
 parser.add_argument('--output_dir', default=None)
 
-parser.add_argument('--device', default='0')
-parser.add_argument('--norm', type=float, defaul=1000)
+parser.add_argument('--device', default='1')
+parser.add_argument('--norm', type=float, default=1000)
 parser.add_argument('--batch_size', type=int, default=4)
 
 if 'ipykernel' in sys.argv[0]:
@@ -26,9 +26,11 @@ if 'ipykernel' in sys.argv[0]:
     args = parser.parse_args([
         '--dataset', '/home/dwu/trainData/uncertainty_prediction/data/mayo_2d_3_layer_mean/dose_rate_4.h5',
         '--checkpoint',
-        '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/25.h5',
+        '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/'
+        'dose_rate_4/denoising/l2_depth_4/100.h5',
         '--output_dir',
-        '/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/',
+        '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/'
+        'dose_rate_4/denoising/l2_depth_4/results/',
     ])
     verbose = 1
 else:
