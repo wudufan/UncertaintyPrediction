@@ -2,7 +2,7 @@
 Data generator
 '''
 
-from typing import List, Tuple, Union
+from typing import Callable, List, Tuple, Union
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -215,11 +215,13 @@ class Image2DGeneratorForUncertainty(Image2DGenerator):
         shuffle: bool = True,
         norm: float = 1000,
         scale_y: float = 1,
+        filter_y: Callable[[np.array], np.array] = None,
         flip: bool = True,
         verbose: int = 0
     ):
         # scale_y is used to bring y close to 1
         self.scale_y = scale_y
+        self.filter_y = filter_y
 
         assert (len(dst_datasets[0]) == 2)
         super().__init__(
@@ -239,7 +241,10 @@ class Image2DGeneratorForUncertainty(Image2DGenerator):
     def __getitem__(self, index: int):
         x, y = super().__getitem__(index)
 
-        y = (y[..., [1]] - y[..., [0]]) ** 2 * self.scale_y * self.scale_y
+        if self.filter_y is None:
+            y = (y[..., [1]] - y[..., [0]]) ** 2 * self.scale_y * self.scale_y
+        else:
+            y = (self.filter_y(y[..., [1]]) - self.filter_y(y[..., [0]])) ** 2 * self.scale_y * self.scale_y
         # y = scipy.ndimage.gaussian_filter1d(y, 10, 1)
         # y = scipy.ndimage.gaussian_filter1d(y, 10, 2)
 

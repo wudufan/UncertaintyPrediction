@@ -1,4 +1,4 @@
-#%%
+# %%
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -7,20 +7,32 @@ import SimpleITK as sitk
 import imageio
 import scipy.stats
 
-#%%
-input_dir = '/home/dwu/trainData/uncertainty_prediction/denoising_results/mayo_2d_3_layer_mean/l2_depth_3/dose_rate_4/uncertainty_model/l2_depth_4/img/valid/'
+# %%
+# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+#             'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
+input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+            'uncertainty/denoising_l2_depth_4/l2_depth_4/filter_10/debug/valid'
+# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+#             'gaussian_assumption/l2_depth_4/img/valid'
 tag = 'dose_rate_4'
-norm = 1
+norm_x = 1
+norm_p = 10
 norm_y = 10
 
-x = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.x.nii'))).astype(np.float32) / norm
-preds = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.pred.nii'))).astype(np.float32) / norm_y
+x = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.x.nii'))).astype(np.float32) / norm_x
+preds = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.pred.nii'))).astype(np.float32) / norm_p
 y = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.y.nii'))).astype(np.float32) / norm_y
 
-#%%
-plt.figure(figsize=(8,4))
-plt.subplot(121); plt.imshow(np.sqrt(np.mean(preds[50:100]**2, 0)), 'gray', vmin=0, vmax=50); plt.title('Mean predicted 50 slices (std) \n [0, 50] HU')
-plt.subplot(122); plt.imshow(np.sqrt(np.mean(y[50:100]**2, 0)), 'gray', vmin=0, vmax=50); plt.title('Mean error 50 slices (std) \n [0, 50] HU')
+# y = np.abs(x - y)
+
+# %%
+plt.figure(figsize=(8, 4))
+plt.subplot(121)
+plt.imshow(np.sqrt(np.mean(preds[-100:]**2, 0)), 'gray', vmin=0, vmax=5)
+plt.title('Mean predicted 50 slices (std) \n [0, 50] HU')
+plt.subplot(122)
+plt.imshow(np.sqrt(np.mean(y[-100:]**2, 0)), 'gray', vmin=0, vmax=5)
+plt.title('Mean error 50 slices (std) \n [0, 50] HU')
 
 # %%
 islice = 80
@@ -28,11 +40,18 @@ std = 10
 smooth_y = np.sqrt(scipy.ndimage.gaussian_filter(y[islice]**2, std))
 smooth_p = np.sqrt(scipy.ndimage.gaussian_filter(preds[islice]**2, std))
 
-plt.figure(figsize=(16,4))
-plt.subplot(141); plt.imshow(preds[islice], 'gray', vmin=0, vmax=50); plt.title('predicted')
-plt.subplot(142); plt.imshow(y[islice], 'gray', vmin=0, vmax=50); plt.title('error')
-plt.subplot(143); plt.imshow(smooth_p, 'gray', vmin=0, vmax=50); plt.title('smoothed predicted \n (Gaussian with std=10)')
-plt.subplot(144); plt.imshow(smooth_y, 'gray', vmin=0, vmax=50)
+plt.figure(figsize=(16, 4))
+plt.subplot(141)
+plt.imshow(preds[islice], 'gray', vmin=0, vmax=5)
+plt.title('predicted')
+plt.subplot(142)
+plt.imshow(y[islice], 'gray', vmin=0, vmax=5)
+plt.title('error')
+plt.subplot(143)
+plt.imshow(smooth_p, 'gray', vmin=0, vmax=5)
+plt.title('smoothed predicted \n (Gaussian with std=10)')
+plt.subplot(144)
+plt.imshow(smooth_y, 'gray', vmin=0, vmax=5)
 
 #%%
 islice = 201

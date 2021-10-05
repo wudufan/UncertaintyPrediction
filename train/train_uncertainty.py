@@ -10,6 +10,8 @@ import shutil
 import pandas as pd
 import numpy as np
 import argparse
+import importlib
+import functools
 
 sys.path.append('..')
 import model.data
@@ -25,7 +27,7 @@ if 'ipykernel' in sys.argv[0]:
     # debug
     print('debug')
     verbose = 1
-    cmds = ['config/uncertainty/debug.cfg']
+    cmds = ['config/uncertainty/l2_depth_4_filter.cfg']
 else:
     print('no debug')
     verbose = 2
@@ -81,6 +83,21 @@ lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose=1)
 optimizer = tf.keras.optimizers.Adam()
 network.model.compile(optimizer, loss=tf.keras.losses.MeanSquaredError())
 
+# %%
+# filter
+try:
+    # get package name
+    package_name = train_args['Filter']['package']
+    func_name = train_args['Filter']['name']
+    params = {k: train_args['Filter'][k] for k in train_args['Filter'] if k not in ['package', 'name']}
+    mod_filter = importlib.import_module(package_name)
+    func_filter = getattr(mod_filter, func_name)
+    filter_y = functools.partial(func_filter, **params)
+except Exception:
+    print('No filters are used')
+    filter_y = None
+
+# %%
 # data
 manifest = pd.read_csv(train_args['IO']['manifest'])
 all_tags = pd.unique(manifest['Tag'])
@@ -93,6 +110,7 @@ generator = model.data.Image2DGeneratorForUncertainty(
     train_args['IO']['src_datasets'],
     train_args['IO']['dst_datasets'],
     train_args['IO']['train'],
+    filter_y=filter_y,
     **train_args['Data']
 )
 valid_generator = model.data.Image2DGeneratorForUncertainty(
@@ -106,6 +124,7 @@ valid_generator = model.data.Image2DGeneratorForUncertainty(
     shuffle=False,
     norm=train_args['Data']['norm'],
     scale_y=train_args['Data']['scale_y'],
+    filter_y=filter_y,
     flip=False
 )
 
@@ -127,7 +146,11 @@ for i in range(len(valid_generator.src_datasets)):
     x, y = valid_generator.load_slices(i, [train_args['Display']['islice']])
     snapshots_x[name] = x
 
-    y = (y[..., [1]] - y[..., [0]]) ** 2 * train_args['Data']['scale_y'] * train_args['Data']['scale_y']
+    if filter_y is None:
+        y = (y[..., [1]] - y[..., [0]]) ** 2 * train_args['Data']['scale_y'] * train_args['Data']['scale_y']
+    else:
+        y = (filter_y(y[..., [1]]) - filter_y(y[..., [0]])) ** 2\
+            * train_args['Data']['scale_y'] * train_args['Data']['scale_y']
     # y = scipy.ndimage.gaussian_filter1d(y, 10, 1)
     # y = scipy.ndimage.gaussian_filter1d(y, 10, 2)
 
