@@ -8,10 +8,10 @@
 
 cd ../../
 
-python3 train_uncertainty.py "./config/uncertainty/l2_depth_4_filter.cfg" --Train.device "'3'" \
---Filter.std "1" --Data.scale_y "200" \
---IO.tag "'l2_depth_4/filter_1/img'" \
+python3 train_uncertainty.py "./config/uncertainty/l2_depth_5_filter.cfg" --Train.device "'3'" \
+--Filter.std "5" \
+--IO.tag "'l2_depth_5/filter_5/img'" \
 --Network.input_shape "(640, 640, 2)" \
 --Data.num_patches_per_slice "1" --Data.num_slices_per_batch "1" \
 --Train.epochs "[20, 50, 100]" --Train.lr "[1e-4, 3.3e-5, 1e-5]" \
-&> ./outputs/uncertainty/l2_depth_4_img_filter_1.log
+&> ./outputs/uncertainty/l2_depth_5_img_filter_5.log

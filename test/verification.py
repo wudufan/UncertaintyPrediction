@@ -8,16 +8,17 @@ import imageio
 import scipy.stats
 
 # %%
-# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
-#             'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
 input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
-            'uncertainty/denoising_l2_depth_4/l2_depth_4/filter_10/debug/valid'
+            'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
+# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+#             'uncertainty/denoising_l2_depth_4/l2_depth_4/filter_3/img/valid'
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
 #             'gaussian_assumption/l2_depth_4/img/valid'
 tag = 'dose_rate_4'
+scale_y = 100
 norm_x = 1
-norm_p = 10
-norm_y = 10
+norm_p = scale_y * 100 / 1000
+norm_y = scale_y * 100 / 1000
 
 x = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.x.nii'))).astype(np.float32) / norm_x
 preds = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.pred.nii'))).astype(np.float32) / norm_p
@@ -28,10 +29,10 @@ y = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(input_dir, tag + '.y.nii'
 # %%
 plt.figure(figsize=(8, 4))
 plt.subplot(121)
-plt.imshow(np.sqrt(np.mean(preds[-100:]**2, 0)), 'gray', vmin=0, vmax=5)
+plt.imshow(np.sqrt(np.mean(preds[-50:]**2, 0)), 'gray', vmin=0, vmax=50)
 plt.title('Mean predicted 50 slices (std) \n [0, 50] HU')
 plt.subplot(122)
-plt.imshow(np.sqrt(np.mean(y[-100:]**2, 0)), 'gray', vmin=0, vmax=5)
+plt.imshow(np.sqrt(np.mean(y[-50:]**2, 0)), 'gray', vmin=0, vmax=50)
 plt.title('Mean error 50 slices (std) \n [0, 50] HU')
 
 # %%
@@ -53,16 +54,22 @@ plt.title('smoothed predicted \n (Gaussian with std=10)')
 plt.subplot(144)
 plt.imshow(smooth_y, 'gray', vmin=0, vmax=5)
 
-#%%
-islice = 201
-plt.figure(figsize=(15,5))
-plt.subplot(131); plt.imshow(x[islice], 'gray', vmin=-160, vmax=240); plt.title('x: [-160,240] HU')
-plt.subplot(132); plt.imshow(preds[islice], 'gray', vmin=0, vmax=50); plt.title('uncertainty (std): [0, 50] HU')
-plt.subplot(133); plt.imshow(y[islice], 'gray', vmin=0, vmax=50); plt.title('|y-x|: [0, 50] HU')
+# %%
+islice = 101
+plt.figure(figsize=(15, 5))
+plt.subplot(131)
+plt.imshow(x[islice], 'gray', vmin=-160, vmax=240)
+plt.title('x: [-160,240] HU')
+plt.subplot(132)
+plt.imshow(preds[islice], 'gray', vmin=0, vmax=50)
+plt.title('uncertainty (std): [0, 50] HU')
+plt.subplot(133)
+plt.imshow(y[islice], 'gray', vmin=0, vmax=50)
+plt.title('|y-x|: [0, 50] HU')
 
 # %%
-var_y_mean = np.mean((y)**2, (1,2))
-var_pred_mean = np.mean((preds)**2, (1,2))
+var_y_mean = np.mean((y)**2, (1, 2))
+var_pred_mean = np.mean((preds)**2, (1, 2))
 
 plt.figure()
 plt.plot(var_y_mean)
@@ -77,6 +84,7 @@ output_dir = os.path.join('figure', tag)
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
+
 # save slices
 def save_img(filename, img, vmin, vmax):
     img = (img - vmin) / (vmax - vmin) * 255
@@ -89,6 +97,7 @@ def save_img(filename, img, vmin, vmax):
         plt.imshow(img, 'gray')
     else:
         imageio.imwrite(filename, img)
+
 
 save_img(os.path.join(output_dir, 'x_shoulder.png'), x[201][64:-64, 64:-64], -160, 240)
 save_img(os.path.join(output_dir, 'pred_shoulder.png'), preds[201][64:-64, 64:-64], 0, 40)
@@ -108,14 +117,14 @@ save_img(os.path.join(output_dir, 'pred_mean_100.png'), pred_mean, vmin=0, vmax=
 
 rmse = np.sqrt(np.mean((y_mean - pred_mean)**2))
 psnr = 20 * np.log10(pred_mean.max() / rmse)
-print (rmse, psnr)
+print(rmse, psnr)
 
 # %%
 # whole-slice mean
-y_slice_mean = np.sqrt(np.mean(y**2, (1,2)))
-pred_slice_mean = np.sqrt(np.mean(preds**2, (1,2)))
+y_slice_mean = np.sqrt(np.mean(y**2, (1, 2)))
+pred_slice_mean = np.sqrt(np.mean(preds**2, (1, 2)))
 
-plt.figure(figsize = [4,3], dpi=200)
+plt.figure(figsize=[4, 3], dpi=200)
 plt.plot(pred_slice_mean)
 plt.plot(y_slice_mean, '--')
 plt.xlabel('Slice index')
@@ -126,8 +135,8 @@ plt.savefig(os.path.join(output_dir, 'slice_mean_err.png'))
 
 # relative error
 errs = np.abs(pred_slice_mean - y_slice_mean) / y_slice_mean
-print (errs.min(), errs.max(), np.median(errs))
-print (errs.mean(), np.std(errs))
+print(errs.min(), errs.max(), np.median(errs))
+print(errs.mean(), np.std(errs))
 
 # r = scipy.stats.pearsonr(y_slice_mean, pred_slice_mean)
 # print (r)
