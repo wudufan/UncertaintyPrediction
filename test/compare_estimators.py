@@ -200,3 +200,5 @@ if SAVE_RESULTS:
     plt.ylabel('STD (HU)')
     plt.ylim([0, 40])
     plt.savefig(os.path.join(output_dir, 'plot_std.png'))
+
+# %%
