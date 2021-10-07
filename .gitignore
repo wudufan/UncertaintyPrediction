@@ -3,3 +3,6 @@ __pycache__
 *.log
 *.out
 figure/
+
+single_img_verify/forbild/results/
+single_img_verify/forbild/test/sample_pairs.h5

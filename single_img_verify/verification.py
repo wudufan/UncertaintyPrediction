@@ -54,12 +54,6 @@ pred_error = sitk.GetArrayFromImage(sitk.ReadImage(
 y_error = sitk.GetArrayFromImage(sitk.ReadImage(
     os.path.join(working_dir, 'error/valid/error.y.nii')
 )).astype(np.float32) / norm_y
-pred_error0 = sitk.GetArrayFromImage(sitk.ReadImage(
-    os.path.join(working_dir, 'error_x0/valid/error_x0.pred.nii')
-)).astype(np.float32) / norm_y
-y_error0 = sitk.GetArrayFromImage(sitk.ReadImage(
-    os.path.join(working_dir, 'error_x0/valid/error_x0.y.nii')
-)).astype(np.float32) / norm_y
 
 # %%
 data_model = noise_model.ImageNoiseModel(x0, var_roi_map, **train_args['NoiseModel'])
@@ -94,16 +88,6 @@ if RUN_PREDICTION:
     plt.imshow(pred_error[0], 'gray', vmin=0.025, vmax=0.075)
     plt.subplot(133)
     plt.imshow(err_mean, 'gray', vmin=0.025, vmax=0.075)
-
-# %%
-err0_mean = np.sqrt(np.mean((y_train - (x0[np.newaxis, ..., np.newaxis] - 1000 / norm))**2, 0))[..., 0]
-plt.figure(figsize=(15, 5))
-plt.subplot(131)
-plt.imshow(y_error0[0], 'gray', vmin=0.0, vmax=0.1)
-plt.subplot(132)
-plt.imshow(pred_error0[0], 'gray', vmin=0.0, vmax=0.1)
-plt.subplot(133)
-plt.imshow(err0_mean, 'gray', vmin=0.0, vmax=0.1)
 
 # %%
 # generate figures

@@ -8,8 +8,12 @@ import imageio
 import scipy.stats
 
 # %%
+# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+#             'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
 input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
-            'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
+            'uncertainty/nlm_0.05/l2_depth_4/img/valid'
+# input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
+#             'denoising/l2_depth_4/valid'
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
 #             'uncertainty/denoising_l2_depth_4/l2_depth_4/filter_3/img/valid'
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
@@ -55,7 +59,7 @@ plt.subplot(144)
 plt.imshow(smooth_y, 'gray', vmin=0, vmax=5)
 
 # %%
-islice = 101
+islice = 295
 plt.figure(figsize=(15, 5))
 plt.subplot(131)
 plt.imshow(x[islice], 'gray', vmin=-160, vmax=240)
@@ -99,13 +103,13 @@ def save_img(filename, img, vmin, vmax):
         imageio.imwrite(filename, img)
 
 
-save_img(os.path.join(output_dir, 'x_shoulder.png'), x[201][64:-64, 64:-64], -160, 240)
-save_img(os.path.join(output_dir, 'pred_shoulder.png'), preds[201][64:-64, 64:-64], 0, 40)
-save_img(os.path.join(output_dir, 'y_shoulder.png'), y[201][64:-64, 64:-64], 0, 40)
+save_img(os.path.join(output_dir, 'x_shoulder.png'), x[101][64:-64, 64:-64], -160, 240)
+save_img(os.path.join(output_dir, 'pred_shoulder.png'), preds[101][64:-64, 64:-64], 0, 40)
+# save_img(os.path.join(output_dir, 'y_shoulder.png'), y[101][64:-64, 64:-64], -160, 240)
 
-save_img(os.path.join(output_dir, 'x_liver.png'), x[95][64:-64, 64:-64], -160, 240)
-save_img(os.path.join(output_dir, 'pred_liver.png'), preds[95][64:-64, 64:-64], 0, 40)
-save_img(os.path.join(output_dir, 'y_liver.png'), y[95][64:-64, 64:-64], 0, 40)
+save_img(os.path.join(output_dir, 'x_liver.png'), x[295][64:-64, 64:-64], -160, 240)
+save_img(os.path.join(output_dir, 'pred_liver.png'), preds[295][64:-64, 64:-64], 0, 40)
+# save_img(os.path.join(output_dir, 'y_liver.png'), y[295][64:-64, 64:-64], -160, 240)
 
 # %%
 # quantification
