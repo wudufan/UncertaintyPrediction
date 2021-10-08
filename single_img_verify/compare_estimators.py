@@ -33,7 +33,7 @@ checkpoint = '100.h5'
 output_dir = './forbild/results'
 
 GENERATE_NEW_SAMPLE = False
-SAVE_RESULTS = True
+SAVE_RESULTS = False
 
 # %%
 # load the training config to load model
@@ -117,9 +117,14 @@ K.clear_session()
 for name in estimator_args:
     print('Predicting {0}'.format(name), flush=True)
 
+    if name == 'gaussian':
+        chkpt = '500.h5'
+    else:
+        chkpt = checkpoint
+
     train_args = estimator_args[name]
     model = tf.keras.models.load_model(
-        os.path.join(train_args['IO']['output_dir'], train_args['IO']['tag'], checkpoint),
+        os.path.join(train_args['IO']['output_dir'], train_args['IO']['tag'], chkpt),
         compile=False
     )
     if name == 'mean':

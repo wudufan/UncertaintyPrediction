@@ -39,7 +39,7 @@ device = '3'
 checkpoint = '100.h5'
 output_dir = './patients/results'
 
-SAVE_RESULTS = True
+SAVE_RESULTS = False
 
 # %%
 # load the training config to load model
@@ -85,6 +85,11 @@ os.environ['CUDA_VISIBLE_DEVICES'] = device
 K.clear_session()
 for name in estimator_args:
     print('Predicting {0}'.format(name), flush=True)
+
+    if name == 'gaussian':
+        chkpt = '500.h5'
+    else:
+        chkpt = checkpoint
 
     train_args = estimator_args[name]
     model = tf.keras.models.load_model(
