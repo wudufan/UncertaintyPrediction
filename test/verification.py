@@ -11,7 +11,7 @@ import scipy.stats
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
 #             'uncertainty/denoising_l2_depth_4/l2_depth_4/img/valid'
 input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
-            'uncertainty/nlm_0.05/l2_depth_4/img/valid'
+            'uncertainty/nlm_0.02/l2_depth_4/img/valid'
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\
 #             'denoising/l2_depth_4/valid'
 # input_dir = '/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/'\

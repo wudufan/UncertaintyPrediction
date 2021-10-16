@@ -33,7 +33,8 @@ checkpoint = '100.h5'
 output_dir = './forbild/results'
 
 GENERATE_NEW_SAMPLE = False
-SAVE_RESULTS = False
+SAVE_RESULTS = True
+CALC_ERROR_PRED = False
 
 # %%
 # load the training config to load model
@@ -118,7 +119,7 @@ for name in estimator_args:
     print('Predicting {0}'.format(name), flush=True)
 
     if name == 'gaussian':
-        chkpt = '500.h5'
+        chkpt = '100.h5'
     else:
         chkpt = checkpoint
 
@@ -139,6 +140,12 @@ for name in estimator_args:
         pred[..., 1] = np.sqrt(np.exp(pred[..., 1]))
 
     preds[name] = pred
+
+# %%
+# Check the denoising error
+if CALC_ERROR_PRED:
+    ref = preds['mean'][..., 0]
+    post_std_test = np.sqrt(post_std_test**2 + post_mean_test**2 - 2 * post_mean_test * ref + ref**2)
 
 # %%
 # check the profile
@@ -273,15 +280,26 @@ if SAVE_RESULTS:
         os.path.join(output_dir, 'mean_post.png'), post_mean_test[ind], vmin_mean, vmax_mean, icolor=3
     )
     save_img(
+        os.path.join(output_dir, 'x.png'), x_test[ind], vmin_mean, vmax_mean
+    )
+    save_img(
+        os.path.join(output_dir, 'y.png'), y_test[ind], vmin_mean, vmax_mean
+    )
+    save_img(
         os.path.join(output_dir, 'mean_gauss.png'), preds['gaussian'][ind, ..., 0], vmin_mean, vmax_mean
     )
     save_img(
         os.path.join(output_dir, 'mean_unet.png'), preds['mean'][ind, ..., 0], vmin_mean, vmax_mean
     )
 
-    save_profile_img(
-        os.path.join(output_dir, 'std_post.png'), post_std_test[ind], vmin_std, vmax_std, icolor=3
-    )
+    if CALC_ERROR_PRED:
+        save_profile_img(
+            os.path.join(output_dir, 'std_post_err_pred.png'), post_std_test[ind], vmin_std, vmax_std, icolor=3
+        )
+    else:
+        save_profile_img(
+            os.path.join(output_dir, 'std_post.png'), post_std_test[ind], vmin_std, vmax_std, icolor=3
+        )
     save_img(
         os.path.join(output_dir, 'std_gauss.png'), preds['gaussian'][ind, ..., 1], vmin_std, vmax_std
     )
@@ -295,9 +313,15 @@ if SAVE_RESULTS:
         ymin=-100, ymax=200
     )
 
-    save_profile_plot(
-        os.path.join(output_dir, 'std_plot.png'),
-        [preds['gaussian'][ind, ..., 1], preds['error'][ind, ..., 0], post_std_test[ind]],
-    )
+    if CALC_ERROR_PRED:
+        save_profile_plot(
+            os.path.join(output_dir, 'std_plot_err_pred.png'),
+            [preds['error'][ind, ..., 0], preds['error'][ind, ..., 0], post_std_test[ind]],
+        )
+    else:
+        save_profile_plot(
+            os.path.join(output_dir, 'std_plot.png'),
+            [preds['gaussian'][ind, ..., 1], preds['error'][ind, ..., 0], post_std_test[ind]],
+        )
 
 # %%

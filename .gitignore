@@ -4,6 +4,6 @@ __pycache__
 *.out
 figure/
 
-test/patients/results/
+test/patients/
 single_img_verify/forbild/results/
 single_img_verify/forbild/test/sample_pairs.h5

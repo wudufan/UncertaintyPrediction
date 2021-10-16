@@ -1,9 +1,10 @@
 '''
-Compare the estimators for real patients
+Compare the estimators with nlm for real patients
 '''
 
 # %%
 import numpy as np
+import cupy as cp
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
@@ -16,28 +17,30 @@ import h5py
 
 sys.path.append('..')
 import utils.config_manager
+import CTProjector.prior.recon_prior_cupy as recon_prior
 
 # %%
 # testing configuration
+nlm_d = 0.05
+search_size = 11
+kernel_size = 5
+kernel_std = 2.5
+
 estimators = {
-    'mean': [
-        '../train/config/denoising/l2_depth_4.cfg',
-    ],
     'error': [
         '../train/config/uncertainty/l2_depth_4.cfg',
+        '--IO.output_dir',
+        '"/home/dwu/trainData/uncertainty_prediction/train/mayo_2d_3_layer_mean/dose_rate_4/uncertainty/nlm_{0}"'
+        .format(nlm_d),
         '--IO.tag', '"l2_depth_4/img"'
     ],
-    'gaussian': [
-        '../train/config/gaussian_assumption/l2_depth_4.cfg',
-        '--IO.tag', '"l2_depth_4/img"'
-    ]
 }
 filename_x = '/home/dwu/trainData/uncertainty_prediction/data/mayo_2d_3_layer_mean/dose_rate_4.h5'
 filename_y = '/home/dwu/trainData/uncertainty_prediction/data/mayo_2d_3_layer_mean/dose_rate_1.h5'
 filename_manifest = '/home/dwu/trainData/uncertainty_prediction/data/mayo_2d_3_layer_mean/manifest.csv'
 device = '1'
 checkpoint = '100.h5'
-output_dir = './patients/results'
+output_dir = './patients/nlm_{0}'.format(nlm_d)
 
 SAVE_RESULTS = True
 
@@ -52,7 +55,7 @@ for name in estimators:
 
 # %%
 # load the data
-train_args = estimator_args['mean']  # it should be the same for all three estimators
+train_args = estimator_args['error']  # it should be the same for all three estimators
 norm = train_args['Data']['norm']
 
 manifest = pd.read_csv(filename_manifest)
@@ -80,32 +83,50 @@ plt.show()
 
 # %%
 # make predictions
-preds = {}
 os.environ['CUDA_VISIBLE_DEVICES'] = device
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+cp.cuda.Device(int(device)).use()
 K.clear_session()
+
+# %%
+preds = {}
+# nlm
+pred = []
+print('nlm', len(x_test))
+for i in range(len(x_test)):
+    if (i + 1) % 50 == 0:
+        print(i + 1, end=',', flush=True)
+    x_cp = cp.array(x_test[i], dtype=cp.float32, order='C')[cp.newaxis, cp.newaxis, ...]
+    res = recon_prior.nlm(
+        x_cp,
+        x_cp,
+        nlm_d,
+        [1, search_size, search_size],
+        [1, kernel_size, kernel_size],
+        [1, kernel_std, kernel_std]
+    )
+    pred.append(res.get()[0, 0])
+print('')
+pred = np.array(pred)[..., np.newaxis]
+preds['nlm'] = pred
+
+# %%
 for name in estimator_args:
     print('Predicting {0}'.format(name), flush=True)
 
-    if name == 'gaussian':
-        chkpt = '100.h5'
-    else:
-        chkpt = checkpoint
+    chkpt = checkpoint
 
     train_args = estimator_args[name]
     model = tf.keras.models.load_model(
         os.path.join(train_args['IO']['output_dir'], train_args['IO']['tag'], checkpoint),
         compile=False
     )
-    if name == 'mean':
-        pred = model.predict(x_test[..., np.newaxis], batch_size=1)
-    elif name == 'error':
-        x = np.concatenate([x_test[..., np.newaxis], preds['mean']], -1)
+    if name == 'error':
+        x = np.concatenate([x_test[..., np.newaxis], preds['nlm']], -1)
         pred = model.predict(x, batch_size=1)
         pred[pred < 0] = 0
         pred = np.sqrt(pred) / train_args['Data']['scale_y']
-    else:
-        pred = model.predict(x_test[..., np.newaxis], batch_size=1)
-        pred[..., 1] = np.sqrt(np.exp(pred[..., 1]))
 
     preds[name] = pred
 
@@ -116,25 +137,21 @@ islice2 = 295
 vmin = 0
 vmax = 0.05
 plt.figure(figsize=[16, 8])
-plt.subplot(241)
+plt.subplot(231)
 plt.imshow(x_test[islice1, 64:-64, 64:-64], 'gray', vmin=-0.16, vmax=0.24)
-plt.subplot(242)
-plt.imshow(preds['gaussian'][islice1, 64:-64, 64:-64, 1], 'gray', vmin=vmin, vmax=vmax)
-plt.subplot(243)
+plt.subplot(232)
 plt.imshow(preds['error'][islice1, 64:-64, 64:-64, 0], 'gray', vmin=vmin, vmax=vmax)
-plt.subplot(244)
+plt.subplot(233)
 plt.imshow(
-    np.abs(preds['mean'][islice1, 64:-64, 64:-64, 0] - y_test[islice1, 64:-64, 64:-64]), 'gray', vmin=0, vmax=0.05
+    np.abs(preds['nlm'][islice1, 64:-64, 64:-64, 0] - y_test[islice1, 64:-64, 64:-64]), 'gray', vmin=0, vmax=0.05
 )
-plt.subplot(245)
+plt.subplot(234)
 plt.imshow(x_test[islice2, 64:-64, 64:-64], 'gray', vmin=-0.16, vmax=0.24)
-plt.subplot(246)
-plt.imshow(preds['gaussian'][islice2, 64:-64, 64:-64, 1], 'gray', vmin=vmin, vmax=vmax)
-plt.subplot(247)
+plt.subplot(235)
 plt.imshow(preds['error'][islice2, 64:-64, 64:-64, 0], 'gray', vmin=vmin, vmax=vmax)
-plt.subplot(248)
+plt.subplot(236)
 plt.imshow(
-    np.abs(preds['mean'][islice2, 64:-64, 64:-64, 0] - y_test[islice2, 64:-64, 64:-64]), 'gray', vmin=0, vmax=0.05
+    np.abs(preds['nlm'][islice2, 64:-64, 64:-64, 0] - y_test[islice2, 64:-64, 64:-64]), 'gray', vmin=0, vmax=0.05
 )
 
 # %%
@@ -142,14 +159,12 @@ plt.imshow(
 # mean
 plt.figure(figsize=[4, 3])
 plt.plot(np.mean(y_test, (1, 2)) * 1000)
-plt.plot(np.mean(preds['gaussian'][..., 0], (1, 2)) * 1000)
-plt.plot(np.mean(preds['mean'][..., 0], (1, 2)) * 1000)
+plt.plot(np.mean(preds['nlm'][..., 0], (1, 2)) * 1000)
 
 # variance
-var_test = (preds['mean'][..., 0] - y_test)**2
+var_test = (preds['nlm'][..., 0] - y_test)**2
 plt.figure(figsize=[4, 3])
 plt.plot(np.sqrt(np.mean(var_test, (1, 2))) * 1000)
-plt.plot(np.sqrt(np.mean(preds['gaussian'][..., 1]**2, (1, 2))) * 1000)
 plt.plot(np.sqrt(np.mean(preds['error'][..., 0]**2, (1, 2))) * 1000)
 
 
@@ -185,19 +200,9 @@ if SAVE_RESULTS:
             -0.16, 0.24
         )
         save_img(
-            os.path.join(output_dir, 'gaussian_mean_{0}.png'.format(islice)),
-            preds['gaussian'][islice, 64:-64, 64:-64, 0],
+            os.path.join(output_dir, 'nlm_{0}.png'.format(islice)),
+            preds['nlm'][islice, 64:-64, 64:-64],
             -0.16, 0.24
-        )
-        save_img(
-            os.path.join(output_dir, 'unet_mean_{0}.png'.format(islice)),
-            preds['mean'][islice, 64:-64, 64:-64, 0],
-            -0.16, 0.24
-        )
-        save_img(
-            os.path.join(output_dir, 'gauss_std_{0}.png'.format(islice)),
-            preds['gaussian'][islice, 64:-64, 64:-64, 1],
-            0, 0.05
         )
         save_img(
             os.path.join(output_dir, 'unet_std_{0}.png'.format(islice)),
@@ -206,14 +211,14 @@ if SAVE_RESULTS:
         )
         save_img(
             os.path.join(output_dir, 'err_{0}.png'.format(islice)),
-            np.abs(y_test[islice, 64:-64, 64:-64] - preds['mean'][islice, 64:-64, 64:-64, 0]),
+            np.abs(y_test[islice, 64:-64, 64:-64] - preds['nlm'][islice, 64:-64, 64:-64, 0]),
             0, 0.05
         )
 
     # variance plot
-    var_test = (preds['mean'][..., 0] - y_test)**2
+    var_test = (preds['nlm'][..., 0] - y_test)**2
     plt.figure(figsize=[4, 3], dpi=200)
-    plt.plot(np.sqrt(np.mean(preds['gaussian'][..., 1]**2, (1, 2))) * 1000)
+    plt.plot(np.sqrt(np.mean(preds['error'][..., 0]**2, (1, 2))) * 1000)
     plt.plot(np.sqrt(np.mean(preds['error'][..., 0]**2, (1, 2))) * 1000)
     plt.plot(np.sqrt(np.mean(var_test, (1, 2))) * 1000)
     plt.xlabel('# Testing Image')
